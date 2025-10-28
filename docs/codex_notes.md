@@ -18,6 +18,7 @@
 - Pantallas `/login` (modo dark) y `/dashboard` (panel rápido para creación de usuarios y grupos).
 - Home inspirada en Wordle implementada con estética dark y hero interactivo.
 - Usuario inicial (`sebastianfente@gmail.com`) promovido a rol ADMIN para usar el panel.
+- Despliegue preparado para Vercel (`vercel.json`, script `vercel-build`, `postinstall` con `prisma generate`, guía en `docs/deploy-vercel.md`).
 
 ## Arquitectura propuesta (borrador)
 
@@ -48,6 +49,7 @@
 - Formalizar migración para `passwordHash` y añadir seeding automatizado (scripts Prisma).
 - Implementar cierre de sesión y middleware de protección de rutas.
 - Añadir feedback (toasts) y listados a `/dashboard` para monitoreo rápido.
+- Automatizar pipeline en Vercel (previews con base de datos temporal, seeds por entorno).
 
 ## Modelo de datos inicial (Prisma)
 

@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Noir Playground
 
-## Getting Started
+Plataforma colaborativa de minijuegos (iniciando con un Wordle personalizado) construida con Next.js 16 y TailwindCSS.
 
-First, run the development server:
+## Características principales
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Landing page estilo Wordle con estética dark y tablero demo.
+- Autenticación por email/contraseña con sesiones persistentes en PostgreSQL.
+- Panel administrativo rápido para crear usuarios y grupos privados.
+- API REST sobre App Router (`/api/auth/login`, `/api/users`, `/api/groups`, `/api/session`).
+- Base de datos gestionada con Prisma y migraciones listas para PostgreSQL.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Stack
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Framework:** Next.js 16 (App Router) + TypeScript
+- **UI:** TailwindCSS 4, Framer Motion, shadcn/ui (pendiente)
+- **Estado y datos:** Prisma, Zustand, TanStack Query (en roadmap)
+- **Base de datos:** PostgreSQL (`db_noirplayground`)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Configuración
 
-## Learn More
+1. Clonar el repositorio y crear el archivo `.env` (o ajustar variables existentes):
 
-To learn more about Next.js, take a look at the following resources:
+   ```bash
+   cp .env.example .env # si existiera, sino copiar manualmente
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+   Variables esperadas:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+   ```env
+   DATABASE_URL="postgresql://app_noirplayground:Noirplayground1666.@72.60.240.4:5432/db_noirplayground?schema=noirplayground"
+   SHADOW_DATABASE_URL="postgresql://app_noirplayground:Noirplayground1666.@72.60.240.4:5432/db_noirplayground?schema=shadow_noirplayground"
+   ```
 
-## Deploy on Vercel
+2. Instalar dependencias y levantar el entorno de desarrollo:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   ```bash
+   npm install
+   npm run dev
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+3. Abrir [http://localhost:3000](http://localhost:3000) y utilizar `/login` para iniciar sesión.
+
+   - Usuario seed: `sebastianfente@gmail.com`
+   - Contraseña: `A37989250.`
+
+## Scripts útiles
+
+- `npm run dev`: inicia el servidor de desarrollo.
+- `npm run lint`: corre ESLint con la configuración de Next.js 16.
+- `npx tsx -r dotenv/config scripts/create-user.ts`: script para crear usuarios manualmente con contraseña hasheada.
+
+## Roadmap inmediato
+
+- Integrar NextAuth con providers y flujo de invitaciones.
+- Implementar motor del juego Wordle y scoreboards en tiempo real.
+- Añadir logout, middleware de protección y feedback visual (toasts) en el panel.
+- Formalizar migraciones Prisma para cambios posteriores (`passwordHash`, seeds, etc.).
+
+---
+
+Este proyecto evoluciona como playground para experimentar con Noir y nuevos modos de juego.
