@@ -16,6 +16,7 @@
 - Helpers Prisma/Auth/Session centralizan acceso a base y sesión (`src/lib/prisma.ts`, `src/lib/auth.ts`, `src/lib/session.ts`).
 - Endpoints protegidos: `POST /api/auth/login`, `GET/POST /api/users`, `POST /api/groups`, `GET /api/session`.
 - Pantallas `/login` (modo dark) y `/dashboard` (panel rápido para creación de usuarios y grupos con asignación de miembros).
+- Página `/jugar-wordle` consumiendo `GET /api/wordle/random` y lógica `evaluateGuess` (tablero local interactivo).
 - Home inspirada en Wordle implementada con estética dark y hero interactivo.
 - Usuario inicial (`sebastianfente@gmail.com`) promovido a rol ADMIN para usar el panel.
 - Despliegue preparado para Vercel (`vercel.json`, script `vercel-build`, `postinstall` con `prisma generate`, guía en `docs/deploy-vercel.md`).
@@ -44,14 +45,14 @@
 ## Próximos pasos propuestos
 
 - Modelar capa de aplicación: rutas iniciales (`/`, `/auth`, `/dashboard`, `/groups`).
-- Implementar motor de Wordle y servicios en `/lib/game`.
+- Implementar motor de Wordle y servicios en `/lib/game` (persistencia de partidas, historial).
 - Crear seeds (usuarios demo, grupos) para validar integraciones.
 - Configurar NextAuth con adapter Prisma y flujo de invitaciones.
 - Formalizar migración para `passwordHash` y añadir seeding automatizado (scripts Prisma).
 - Implementar cierre de sesión y middleware de protección de rutas.
 - Añadir feedback (toasts) y listados a `/dashboard` para monitoreo rápido.
 - Crear endpoint para palabras (obtener próxima palabra disponible, marcar como usada) y herramientas para recargar el diccionario.
-- Automatizar pipeline en Vercel (previews con base de datos temporal, seeds por entorno).
+- Persistir partidas/estadísticas (tabla `GameRound`/`Attempt`), rankings por grupo y tablero de resultados.
 
 ## Modelo de datos inicial (Prisma)
 
@@ -64,3 +65,4 @@
 - `GameRound`: rondas por juego y grupo, estado (`SCHEDULED`, `ACTIVE`, ...).
 - `Attempt`: intentos dentro de una ronda con feedback JSON y orden.
 - `Score`: agregados por usuario/round/grupo (puntos, wins, intentos, streak).
+- `Word`: diccionario de cinco letras con `usedAt` para rotación de palabras.
