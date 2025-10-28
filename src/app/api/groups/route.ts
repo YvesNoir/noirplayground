@@ -14,6 +14,16 @@ export async function POST(request: Request) {
     const name = typeof body.name === "string" ? body.name.trim() : "";
     const description =
       typeof body.description === "string" ? body.description.trim() : "";
+    const memberIds = Array.isArray(body.memberIds)
+      ? Array.from(
+          new Set(
+            body.memberIds
+              .filter((value): value is string => typeof value === "string")
+              .map((value) => value.trim())
+              .filter(Boolean),
+          ),
+        )
+      : [];
 
     if (!name) {
       return NextResponse.json(
@@ -22,7 +32,40 @@ export async function POST(request: Request) {
       );
     }
 
+    if (memberIds.length > 0 && currentUser.role !== "ADMIN") {
+      return NextResponse.json(
+        {
+          error:
+            "Solo los administradores pueden asignar miembros al momento de crear un grupo.",
+        },
+        { status: 403 },
+      );
+    }
+
     const joinCode = `NG-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+
+    let extraMembers: Array<{
+      userId: string;
+      role: "MEMBER";
+      status: "ACTIVE";
+    }> = [];
+
+    if (memberIds.length > 0) {
+      const users = await prisma.user.findMany({
+        where: { id: { in: memberIds } },
+        select: { id: true },
+      });
+
+      const validIds = users
+        .map((user) => user.id)
+        .filter((id) => id !== currentUser.id);
+
+      extraMembers = validIds.map((userId) => ({
+        userId,
+        role: "MEMBER",
+        status: "ACTIVE",
+      }));
+    }
 
     const group = await prisma.group.create({
       data: {
@@ -31,16 +74,28 @@ export async function POST(request: Request) {
         joinCode,
         ownerId: currentUser.id,
         memberships: {
-          create: {
-            userId: currentUser.id,
-            role: "ADMIN",
-            status: "ACTIVE",
-          },
+          create: [
+            {
+              userId: currentUser.id,
+              role: "ADMIN",
+              status: "ACTIVE",
+            },
+            ...extraMembers,
+          ],
         },
       },
       include: {
         memberships: {
-          where: { userId: currentUser.id },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+              },
+            },
+          },
         },
       },
     });
@@ -51,6 +106,12 @@ export async function POST(request: Request) {
         name: group.name,
         description: group.description,
         joinCode: group.joinCode,
+        members: group.memberships.map((membership) => ({
+          userId: membership.userId,
+          role: membership.role,
+          status: membership.status,
+          user: membership.user,
+        })),
       },
     });
   } catch (error) {

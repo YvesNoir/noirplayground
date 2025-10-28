@@ -14,8 +14,8 @@
 - `User` amplía columna `passwordHash` para credenciales (sincronizado con `prisma db push`).
 - Script de seed en `scripts/create-user.ts` (usa `tsx` + `bcryptjs`) para crear usuario inicial.
 - Helpers Prisma/Auth/Session centralizan acceso a base y sesión (`src/lib/prisma.ts`, `src/lib/auth.ts`, `src/lib/session.ts`).
-- Endpoints protegidos: `POST /api/auth/login`, `POST /api/users`, `POST /api/groups`, `GET /api/session`.
-- Pantallas `/login` (modo dark) y `/dashboard` (panel rápido para creación de usuarios y grupos).
+- Endpoints protegidos: `POST /api/auth/login`, `GET/POST /api/users`, `POST /api/groups`, `GET /api/session`.
+- Pantallas `/login` (modo dark) y `/dashboard` (panel rápido para creación de usuarios y grupos con asignación de miembros).
 - Home inspirada en Wordle implementada con estética dark y hero interactivo.
 - Usuario inicial (`sebastianfente@gmail.com`) promovido a rol ADMIN para usar el panel.
 - Despliegue preparado para Vercel (`vercel.json`, script `vercel-build`, `postinstall` con `prisma generate`, guía en `docs/deploy-vercel.md`).

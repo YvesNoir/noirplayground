@@ -6,8 +6,8 @@ Plataforma colaborativa de minijuegos (iniciando con un Wordle personalizado) co
 
 - Landing page estilo Wordle con estética dark y tablero demo.
 - Autenticación por email/contraseña con sesiones persistentes en PostgreSQL.
-- Panel administrativo rápido para crear usuarios y grupos privados.
-- API REST sobre App Router (`/api/auth/login`, `/api/users`, `/api/groups`, `/api/session`).
+- Panel administrativo rápido para crear usuarios y grupos privados (asignando miembros desde el alta).
+- API REST sobre App Router (`/api/auth/login`, `/api/users` GET/POST, `/api/groups` POST, `/api/session`).
 - Base de datos gestionada con Prisma y migraciones listas para PostgreSQL.
 
 ## Stack

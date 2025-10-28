@@ -3,6 +3,27 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 
+export async function GET() {
+  const currentUser = await getCurrentUser();
+
+  if (!currentUser || currentUser.role !== "ADMIN") {
+    return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  }
+
+  const users = await prisma.user.findMany({
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      createdAt: true,
+    },
+  });
+
+  return NextResponse.json({ users });
+}
+
 export async function POST(request: Request) {
   const currentUser = await getCurrentUser();
 

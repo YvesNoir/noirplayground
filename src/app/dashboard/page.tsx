@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type ApiResponse<T> =
@@ -19,6 +19,17 @@ type CreateUserPayload = {
 type CreateGroupPayload = {
   name: string;
   description?: string;
+};
+
+type MinimalUser = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  role: "USER" | "ADMIN";
+};
+
+type SessionResponse = {
+  user: MinimalUser;
 };
 
 async function postJson<T>(url: string, body: unknown): Promise<ApiResponse<T>> {
@@ -66,27 +77,88 @@ export default function DashboardPage() {
   const [createGroupStatus, setCreateGroupStatus] = useState<string | null>(
     null,
   );
+  const [currentUser, setCurrentUser] = useState<MinimalUser | null>(null);
+  const [availableUsers, setAvailableUsers] = useState<MinimalUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersError, setUsersError] = useState<string | null>(null);
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
+
+  const fetchUsers = async (signal?: AbortSignal) => {
+    try {
+      setUsersLoading(true);
+      setUsersError(null);
+
+      const response = await fetch("/api/users", {
+        method: "GET",
+        signal,
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        setUsersError(data?.error ?? "No se pudieron cargar los usuarios.");
+        return;
+      }
+
+      const data = await response.json();
+      setAvailableUsers(data.users as MinimalUser[]);
+    } catch (error) {
+      if ((error as Error).name === "AbortError") return;
+      console.error("Users fetch error", error);
+      setUsersError("No se pudieron cargar los usuarios.");
+    } finally {
+      setUsersLoading(false);
+    }
+  };
 
   useEffect(() => {
     const controller = new AbortController();
 
-    async function verifySession() {
-      const response = await fetch("/api/session", {
-        method: "GET",
-        signal: controller.signal,
-      });
+    async function loadSessionAndUsers() {
+      try {
+        const response = await fetch("/api/session", {
+          method: "GET",
+          signal: controller.signal,
+        });
 
-      if (response.status === 401) {
+        if (response.status === 401) {
+          router.push("/login");
+          return;
+        }
+
+        const data = (await response.json()) as SessionResponse;
+        setCurrentUser(data.user);
+
+        if (data.user.role === "ADMIN") {
+          await fetchUsers(controller.signal);
+        }
+      } catch (error) {
+        if ((error as Error).name === "AbortError") return;
+        console.error("Session fetch error", error);
         router.push("/login");
       }
     }
 
-    void verifySession();
+    void loadSessionAndUsers();
 
     return () => {
       controller.abort();
     };
   }, [router]);
+
+  const assignableUsers = useMemo(() => {
+    if (!currentUser) {
+      return [];
+    }
+    return availableUsers.filter((user) => user.id !== currentUser.id);
+  }, [availableUsers, currentUser]);
+
+  function toggleSelectedMember(userId: string) {
+    setSelectedMemberIds((prev) =>
+      prev.includes(userId)
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId],
+    );
+  }
 
   async function handleCreateUser() {
     setCreateUserStatus(null);
@@ -110,28 +182,56 @@ export default function DashboardPage() {
       password: "",
       role: "USER",
     });
+    if (currentUser?.role === "ADMIN") {
+      void fetchUsers();
+    }
   }
 
   async function handleCreateGroup() {
     setCreateGroupStatus(null);
 
-    const result = await postJson<{ group: { name: string; joinCode: string } }>(
-      "/api/groups",
-      groupForm,
-    );
+    const result = await postJson<{
+      group: {
+        name: string;
+        joinCode: string;
+        members: Array<{
+          userId: string;
+          user: { name: string | null; email: string | null } | null;
+        }>;
+      };
+    }>("/api/groups", {
+      ...groupForm,
+      memberIds: selectedMemberIds,
+    });
 
     if (!result.success) {
       setCreateGroupStatus(result.error);
       return;
     }
 
+    const extraMembers =
+      result.data.group.members.filter(
+        (member) => member.userId !== currentUser?.id,
+      ) ?? [];
+    const memberSummary = extraMembers.length
+      ? ` | Miembros añadidos: ${extraMembers
+          .map(
+            (member) =>
+              member.user?.name ??
+              member.user?.email ??
+              member.userId.slice(0, 6),
+          )
+          .join(", ")}`
+      : "";
+
     setCreateGroupStatus(
-      `Grupo ${result.data.group.name} creado (código ${result.data.group.joinCode}).`,
+      `Grupo ${result.data.group.name} creado (código ${result.data.group.joinCode}).${memberSummary}`,
     );
     setGroupForm({
       name: "",
       description: "",
     });
+    setSelectedMemberIds([]);
   }
 
   return (
@@ -306,6 +406,55 @@ export default function DashboardPage() {
                   className="w-full rounded-xl border border-[#242433] bg-[#13131d] px-4 py-3 text-sm text-[#f5f5f5] outline-none transition focus:border-[#6aaa64] focus:ring-2 focus:ring-[#6aaa64]/40"
                 />
               </div>
+
+              {currentUser?.role === "ADMIN" ? (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-[#e1e3f0]">
+                    Asignar miembros (opcional)
+                  </label>
+                  <div className="space-y-2 rounded-xl border border-[#242433] bg-[#13131d] p-3">
+                    {usersLoading ? (
+                      <p className="text-sm text-[#8b8fa3]">
+                        Cargando usuarios disponibles...
+                      </p>
+                    ) : usersError ? (
+                      <p className="text-sm text-[#ff9393]">{usersError}</p>
+                    ) : assignableUsers.length === 0 ? (
+                      <p className="text-sm text-[#8b8fa3]">
+                        No hay otros usuarios disponibles todavía.
+                      </p>
+                    ) : (
+                      <div className="flex max-h-48 flex-col gap-2 overflow-y-auto pr-1">
+                        {assignableUsers.map((user) => (
+                          <label
+                            key={user.id}
+                            className="flex items-start gap-3 rounded-lg border border-transparent px-2 py-2 transition hover:border-[#2d2d36] hover:bg-[#181824]"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedMemberIds.includes(user.id)}
+                              onChange={() => toggleSelectedMember(user.id)}
+                              className="mt-1 h-4 w-4 rounded border-[#2d2d36] bg-[#0d0d15] text-[#6aaa64] focus:ring-[#6aaa64]/60"
+                            />
+                            <span className="flex flex-col">
+                              <span className="text-sm text-[#f5f5f5]">
+                                {user.name ?? user.email ?? "Usuario sin nombre"}
+                              </span>
+                              <span className="text-xs text-[#8b8fa3]">
+                                {user.email ?? "Sin email"}
+                              </span>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-[#8b8fa3]">
+                    Los miembros seleccionados se añadirán al grupo con rol
+                    estándar.
+                  </p>
+                </div>
+              ) : null}
 
               {createGroupStatus ? (
                 <p
