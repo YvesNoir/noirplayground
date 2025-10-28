@@ -1,0 +1,236 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+/// Users of the platform (Auth.js model compatible).
+model User {
+  id                  String        @id @default(cuid())
+  name                String?
+  email               String?       @unique
+  emailVerified       DateTime?
+  image               String?
+  role                UserRole      @default(USER)
+  passwordHash        String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  accounts            Account[]
+  sessions            Session[]
+  memberships         GroupMembership[]
+  sentInvitations     Invitation[]  @relation("InvitationInviter")
+  receivedInvitations Invitation[]  @relation("InvitationRecipient")
+  ownedGroups         Group[]       @relation("GroupOwner")
+  attempts            Attempt[]
+  scores              Score[]
+}
+
+/// Auth.js account linkage for OAuth providers.
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @map("refreshToken")
+  access_token      String? @map("accessToken")
+  expires_at        Int?    @map("expiresAt")
+  token_type        String? @map("tokenType")
+  scope             String?
+  id_token          String? @map("idToken")
+  session_state     String? @map("sessionState")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+/// Auth.js session model.
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Token storage for email login and passwordless flows.
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+/// Collection of games (Wordle, futuros juegos).
+model Game {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  name        String
+  description String?
+  config      Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  rounds GameRound[]
+}
+
+/// Grupos privados de competición.
+model Group {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  joinCode    String?       @unique
+  ownerId     String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  owner        User             @relation("GroupOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  memberships  GroupMembership[]
+  invitations  Invitation[]
+  rounds       GameRound[]
+  scores       Score[]
+
+  @@index([ownerId])
+}
+
+/// Miembros de un grupo con rol y estado.
+model GroupMembership {
+  id        String            @id @default(cuid())
+  groupId   String
+  userId    String
+  role      GroupRole         @default(MEMBER)
+  status    MembershipStatus  @default(PENDING)
+  createdAt DateTime          @default(now())
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([userId])
+}
+
+/// Invitaciones enviadas a emails o usuarios existentes.
+model Invitation {
+  id            String            @id @default(cuid())
+  groupId       String
+  inviterId     String?
+  recipientId   String?
+  email         String
+  token         String            @unique
+  status        InvitationStatus  @default(PENDING)
+  expiresAt     DateTime?
+  createdAt     DateTime          @default(now())
+  respondedAt   DateTime?
+
+  group       Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  inviter     User? @relation("InvitationInviter", fields: [inviterId], references: [id], onDelete: SetNull)
+  recipient   User? @relation("InvitationRecipient", fields: [recipientId], references: [id], onDelete: SetNull)
+
+  @@index([groupId])
+  @@index([email])
+}
+
+/// Rondas específicas de un juego (Wordle, etc.).
+model GameRound {
+  id             String       @id @default(cuid())
+  gameId         String
+  groupId        String?
+  targetWord     String
+  status         RoundStatus  @default(SCHEDULED)
+  startsAt       DateTime     @default(now())
+  endsAt         DateTime?
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  game   Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  group  Group? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  attempts Attempt[]
+  scores   Score[]
+
+  @@index([gameId])
+  @@index([groupId])
+}
+
+/// Intentos de los jugadores dentro de una ronda.
+model Attempt {
+  id         String   @id @default(cuid())
+  roundId    String
+  userId     String
+  guess      String
+  feedback   Json
+  attemptNo  Int
+  submittedAt DateTime @default(now())
+
+  round GameRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  user  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roundId, userId, attemptNo])
+  @@index([userId])
+}
+
+/// Puntajes agregados por ronda o grupo.
+model Score {
+  id         String   @id @default(cuid())
+  userId     String
+  groupId    String?
+  roundId    String?
+  points     Int      @default(0)
+  wins       Int      @default(0)
+  attempts   Int      @default(0)
+  streak     Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group Group?    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  round GameRound? @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([groupId])
+  @@index([roundId])
+  @@unique([userId, groupId, roundId])
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum GroupRole {
+  MEMBER
+  ADMIN
+}
+
+enum MembershipStatus {
+  PENDING
+  ACTIVE
+  DECLINED
+  BLOCKED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  CANCELED
+}
+
+enum RoundStatus {
+  SCHEDULED
+  ACTIVE
+  CLOSED
+  ARCHIVED
+}
