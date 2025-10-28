@@ -8,7 +8,8 @@
     "vercel-build": "prisma migrate deploy && next build",
     "start": "next start",
     "lint": "eslint",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "seed:words": "tsx -r dotenv/config scripts/seed-words.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.18.0",

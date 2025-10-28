@@ -49,6 +49,7 @@ Plataforma colaborativa de minijuegos (iniciando con un Wordle personalizado) co
 - `npm run dev`: inicia el servidor de desarrollo.
 - `npm run lint`: corre ESLint con la configuración de Next.js 16.
 - `npx tsx -r dotenv/config scripts/create-user.ts`: script para crear usuarios manualmente con contraseña hasheada.
+- `npm run seed:words`: carga 600 palabras de cinco letras en la tabla `Word` a partir de `data/spanish-5.txt`.
 
 ## Roadmap inmediato
 

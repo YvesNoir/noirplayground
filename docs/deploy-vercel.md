@@ -45,6 +45,7 @@ Esto garantiza que durante cada deploy:
 - Revisar logs para confirmar que `prisma migrate deploy` fue exitoso.
 - Probar `/login` con el usuario seed (`sebastianfente@gmail.com / A37989250.`).
 - Si necesitás más usuarios/grupos, usar el panel `/dashboard`.
+- Para poblar el diccionario inicial en producción, correr manualmente `npm run seed:words` (solo una vez) desde una terminal con acceso a las variables de entorno.
 
 ## 6. Consideraciones adicionales
 

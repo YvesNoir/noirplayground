@@ -19,6 +19,7 @@
 - Home inspirada en Wordle implementada con estética dark y hero interactivo.
 - Usuario inicial (`sebastianfente@gmail.com`) promovido a rol ADMIN para usar el panel.
 - Despliegue preparado para Vercel (`vercel.json`, script `vercel-build`, `postinstall` con `prisma generate`, guía en `docs/deploy-vercel.md`).
+- Tabla `Word` añadida (campo `usedAt`) con 600 palabras seed (`npm run seed:words`, fuente `data/spanish-5.txt`).
 
 ## Arquitectura propuesta (borrador)
 
@@ -49,6 +50,7 @@
 - Formalizar migración para `passwordHash` y añadir seeding automatizado (scripts Prisma).
 - Implementar cierre de sesión y middleware de protección de rutas.
 - Añadir feedback (toasts) y listados a `/dashboard` para monitoreo rápido.
+- Crear endpoint para palabras (obtener próxima palabra disponible, marcar como usada) y herramientas para recargar el diccionario.
 - Automatizar pipeline en Vercel (previews con base de datos temporal, seeds por entorno).
 
 ## Modelo de datos inicial (Prisma)

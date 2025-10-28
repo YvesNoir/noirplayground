@@ -234,3 +234,12 @@ enum RoundStatus {
   CLOSED
   ARCHIVED
 }
+
+model Word {
+  id        String   @id @default(cuid())
+  text      String   @unique
+  length    Int
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
