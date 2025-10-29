@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ['@prisma/client', 'prisma'],
+  // Empty config - let Next.js handle everything automatically
 };
 
 module.exports = nextConfig;
