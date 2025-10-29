@@ -1,4 +1,5 @@
-import Image from "next/image";
+import { Header } from "@/components/Header";
+import { PlayButton } from "@/components/PlayButton";
 
 export default function Home() {
   const sampleBoard = [
@@ -58,44 +59,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[#0b0b0f] text-[#f5f5f5]">
-      <header className="border-b border-[#1f1f29] bg-[#12121c]/80 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 md:px-8">
-          <div className="flex items-center">
-            <Image
-              src="/logo-noir.svg"
-              alt="Noir Playground logo"
-              width={160}
-              height={64}
-              priority
-            />
-          </div>
-          <nav className="hidden items-center gap-6 text-sm font-medium md:flex">
-            <a className="transition hover:text-[#9ce27a]" href="#como-jugar">
-              Cómo jugar
-            </a>
-            <a className="transition hover:text-[#9ce27a]" href="#scoreboard">
-              Scoreboard
-            </a>
-            <a className="transition hover:text-[#9ce27a]" href="#palabras">
-              Lista de palabras
-            </a>
-          </nav>
-          <div className="flex items-center gap-3">
-            <a
-              className="rounded-full border border-[#2d2d36] px-4 py-2 text-sm font-medium transition hover:border-[#6aaa64] hover:text-[#9ce27a]"
-              href="/login"
-            >
-              Iniciar sesión
-            </a>
-            <a
-              className="rounded-full bg-[#6aaa64] px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white shadow-[0_4px_0_#3c6c3c] transition hover:-translate-y-[2px] hover:shadow-[0_6px_0_#3c6c3c]"
-              href="/dashboard"
-            >
-              Panel
-            </a>
-          </div>
-        </div>
-      </header>
+      <Header />
 
       <main className="mx-auto flex max-w-6xl flex-col gap-16 px-4 py-12 md:px-8 md:py-16">
         <section className="grid gap-12 lg:grid-cols-2">
@@ -113,9 +77,7 @@ export default function Home() {
               partida diaria.
             </p>
             <div className="flex flex-wrap gap-3">
-              <button className="rounded-full bg-[#6aaa64] px-6 py-3 text-sm font-semibold uppercase tracking-wide text-white shadow-[0_6px_0_#4d8153] transition hover:-translate-y-[2px] hover:shadow-[0_8px_0_#4d8153]">
-                Empezar partida
-              </button>
+              <PlayButton />
               <button className="rounded-full border border-[#2a2a35] px-6 py-3 text-sm font-semibold uppercase tracking-wide transition hover:bg-[#2a2a35] hover:text-white">
                 Crear grupo
               </button>
