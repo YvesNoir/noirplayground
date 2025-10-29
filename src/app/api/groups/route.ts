@@ -17,10 +17,10 @@ export async function POST(request: Request) {
     const memberIds: string[] = Array.isArray(body.memberIds)
       ? Array.from(
           new Set(
-            body.memberIds
-              .filter((value: unknown): value is string => typeof value === "string")
-              .map((value) => value.trim())
-              .filter((value) => value.length > 0),
+            (body.memberIds as unknown[])
+              .filter((value): value is string => typeof value === "string")
+              .map((value: string) => value.trim())
+              .filter((value: string) => value.length > 0),
           ),
         )
       : [];
