@@ -82,6 +82,7 @@ export default function DashboardPage() {
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const fetchUsers = async (signal?: AbortSignal) => {
     try {
@@ -234,6 +235,29 @@ export default function DashboardPage() {
     setSelectedMemberIds([]);
   }
 
+  const handleLogout = async () => {
+    try {
+      setLoggingOut(true);
+
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        console.error("Logout failed");
+        return;
+      }
+
+      // Redirect to home page
+      router.push("/");
+      router.refresh();
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      setLoggingOut(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#06060a] px-4 py-16 text-[#f5f5f5]">
       <div className="mx-auto flex max-w-6xl flex-col gap-8">
@@ -257,12 +281,21 @@ export default function DashboardPage() {
               </p>
             </div>
           </div>
-          <Link
-            href="/"
-            className="rounded-full border border-[#2d2d36] px-4 py-2 text-sm font-medium transition hover:border-[#6aaa64] hover:text-[#9ce27a]"
-          >
-            Volver al inicio
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              className="rounded-full border border-[#2d2d36] px-4 py-2 text-sm font-medium transition hover:border-[#6aaa64] hover:text-[#9ce27a]"
+            >
+              Volver al inicio
+            </Link>
+            <button
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="rounded-full bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-50"
+            >
+              {loggingOut ? "Cerrando..." : "Cerrar sesión"}
+            </button>
+          </div>
         </header>
 
         <main className="grid gap-8 lg:grid-cols-2">
