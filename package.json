@@ -5,10 +5,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "vercel-build": "rm -rf node_modules/.prisma || true && prisma generate --no-engine && prisma generate && prisma migrate deploy && next build",
+    "vercel-build": "prisma generate && prisma migrate deploy && next build",
     "start": "next start",
     "lint": "eslint",
-    "postinstall": "rm -rf node_modules/.prisma || true && prisma generate",
+    "postinstall": "prisma generate",
     "seed:words": "tsx -r dotenv/config scripts/seed-words.ts"
   },
   "dependencies": {
