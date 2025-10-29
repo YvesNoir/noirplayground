@@ -14,13 +14,13 @@ export async function POST(request: Request) {
     const name = typeof body.name === "string" ? body.name.trim() : "";
     const description =
       typeof body.description === "string" ? body.description.trim() : "";
-    const memberIds = Array.isArray(body.memberIds)
+    const memberIds: string[] = Array.isArray(body.memberIds)
       ? Array.from(
           new Set(
             body.memberIds
-              .filter((value): value is string => typeof value === "string")
+              .filter((value: unknown): value is string => typeof value === "string")
               .map((value) => value.trim())
-              .filter(Boolean),
+              .filter((value) => value.length > 0),
           ),
         )
       : [];
