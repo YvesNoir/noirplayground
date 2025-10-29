@@ -164,6 +164,11 @@ export default function JugarWordlePage() {
       return;
     }
 
+    const letterState = keyboardState[key];
+    if (letterState === "absent") {
+      return;
+    }
+
     const updated = [...currentGuess];
     const nextIndex = updated.findIndex((letter) => letter === "");
 
@@ -324,6 +329,7 @@ export default function JugarWordlePage() {
 
                   const letterState = keyboardState[key];
                   let keyClasses = "rounded-lg px-4 py-2 text-sm font-semibold uppercase tracking-wide transition";
+                  const disabled = letterState === "absent";
                   switch (letterState) {
                     case "correct":
                       keyClasses += " bg-[#6aaa64] text-white shadow-[0_4px_0_#3c6c3c]";
@@ -343,7 +349,8 @@ export default function JugarWordlePage() {
                     <button
                       key={key}
                       onClick={() => handleKeyInput(key)}
-                      className={keyClasses}
+                      className={`${keyClasses} ${disabled ? "opacity-40 cursor-not-allowed hover:translate-y-0 hover:shadow-[0_4px_0_#13131d]" : ""}`}
+                      disabled={disabled}
                     >
                       {key}
                     </button>
