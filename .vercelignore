@@ -1,0 +1,4 @@
+# Include Prisma files explicitly
+!node_modules/.prisma/
+!node_modules/@prisma/
+!prisma/
