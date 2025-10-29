@@ -3,6 +3,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
@@ -31,6 +32,7 @@ model User {
   ownedGroups         Group[]       @relation("GroupOwner")
   attempts            Attempt[]
   scores              Score[]
+  wordleResults       WordleResult[]
 }
 
 /// Auth.js account linkage for OAuth providers.
@@ -244,7 +246,6 @@ model Word {
   updatedAt DateTime @updatedAt
 
   wordleDay WordleDay?
-  results   WordleResult[]
 }
 
 model WordleDay {
