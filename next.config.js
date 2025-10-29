@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ['@prisma/client', 'prisma'],
-  turbopack: {},
+  // Empty config - let Next.js handle everything automatically
 };
 
 module.exports = nextConfig;
