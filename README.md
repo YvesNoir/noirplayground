@@ -9,7 +9,7 @@ Plataforma colaborativa de minijuegos (iniciando con un Wordle personalizado) co
 - Panel administrativo rápido para crear usuarios y grupos privados (asignando miembros desde el alta).
 - API REST sobre App Router (`/api/auth/login`, `/api/users` GET/POST, `/api/groups` POST, `/api/session`).
 - Base de datos gestionada con Prisma y migraciones listas para PostgreSQL.
-- Página `/jugar-wordle` con tablero interactivo basado en palabras de la tabla `Word`.
+- Página `/jugar-wordle` con tablero interactivo, teclado virtual, temporizador y partida diaria (resultados almacenados en PostgreSQL).
 
 ## Stack
 

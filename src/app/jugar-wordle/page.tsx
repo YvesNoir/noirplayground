@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
 import { evaluateGuess, LetterState } from "@/lib/game/wordle";
 
 const MAX_ATTEMPTS = 6;
-
 const KEYBOARD_ROWS = [
   ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
-  ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
+  ["A", "S", "D", "F", "G", "H", "J", "K", "L", "Ñ"],
   ["ENTER", "Z", "X", "C", "V", "B", "N", "M", "⌫"],
 ];
 
@@ -18,35 +18,97 @@ type GuessResult = {
 
 type KeyboardState = Record<string, LetterState>;
 
+type DailyResult = {
+  attempts: number;
+  seconds: number;
+  solved: boolean;
+  createdAt: string;
+};
+
+function getTodayKey() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatTime(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60)
+    .toString()
+    .padStart(2, "0");
+  const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+  return `${minutes}:${seconds}`;
+}
+
 export default function JugarWordlePage() {
   const [targetWord, setTargetWord] = useState<string | null>(null);
   const [wordLength, setWordLength] = useState<number>(5);
   const [guesses, setGuesses] = useState<GuessResult[]>([]);
-  const [currentGuess, setCurrentGuess] = useState<string[]>([]);
+  const [currentGuess, setCurrentGuess] = useState<string[]>(Array(5).fill(""));
   const [attemptIndex, setAttemptIndex] = useState(0);
   const [status, setStatus] = useState<"playing" | "won" | "lost">("playing");
   const [feedback, setFeedback] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [alreadyPlayed, setAlreadyPlayed] = useState(false);
+  const [dailyResult, setDailyResult] = useState<DailyResult | null>(null);
+  const [secondsElapsed, setSecondsElapsed] = useState(0);
+
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const resultSubmittedRef = useRef(false);
+  const todayRef = useRef<string>(getTodayKey());
 
   useEffect(() => {
-    async function fetchWord() {
+    async function fetchDailyWord() {
       try {
         setLoading(true);
-        const response = await fetch("/api/wordle/random");
+        setFeedback(null);
+        resultSubmittedRef.current = false;
+
+        const response = await fetch("/api/wordle/daily");
         if (!response.ok) {
           const data = await response.json().catch(() => null);
           setFeedback(data?.error ?? "No se pudo obtener la palabra.");
           setStatus("lost");
+          setLoading(false);
           return;
         }
+
         const data = await response.json();
-        setTargetWord(data.word);
-        setWordLength(data.length ?? data.word.length);
+
+        todayRef.current = getTodayKey();
+        setWordLength(data.length);
         setGuesses([]);
-        setCurrentGuess(Array(data.length ?? data.word.length).fill(""));
         setAttemptIndex(0);
-        setStatus("playing");
-        setFeedback(null);
+        setSecondsElapsed(0);
+        setDailyResult(null);
+        setAlreadyPlayed(Boolean(data.alreadyPlayed));
+
+        if (data.alreadyPlayed && data.result) {
+          const result: DailyResult = {
+            attempts: data.result.attempts,
+            seconds: data.result.seconds,
+            solved: data.result.solved,
+            createdAt: data.result.createdAt,
+          };
+          setDailyResult(result);
+          setStatus(result.solved ? "won" : "lost");
+          setFeedback(
+            result.solved
+              ? `Ya jugaste hoy y acertaste en ${result.attempts} intentos con un tiempo de ${formatTime(
+                  result.seconds,
+                )}.`
+              : `Ya jugaste hoy. No acertaste la palabra. Tiempo: ${formatTime(result.seconds)}.`,
+          );
+          setTargetWord(null);
+          setCurrentGuess(Array(data.length).fill(""));
+          resultSubmittedRef.current = true;
+        } else {
+          setTargetWord(data.word);
+          setCurrentGuess(Array(data.length).fill(""));
+          setStatus("playing");
+          setFeedback(null);
+        }
       } catch (error) {
         console.error(error);
         setFeedback("Error al obtener la palabra.");
@@ -56,30 +118,8 @@ export default function JugarWordlePage() {
       }
     }
 
-    void fetchWord();
+    void fetchDailyWord();
   }, []);
-
-  useEffect(() => {
-    if (!targetWord || status !== "playing") return;
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      event.preventDefault();
-      const key = event.key;
-      handleKeyInput(key);
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetWord, currentGuess, status, attemptIndex, wordLength]);
-
-  const boardRows = useMemo(() => {
-    const rows: Array<GuessResult | null> = Array.from(
-      { length: MAX_ATTEMPTS },
-      (_, index) => guesses[index] ?? null,
-    );
-    return rows;
-  }, [guesses]);
 
   const keyboardState: KeyboardState = useMemo(() => {
     const state: KeyboardState = {};
@@ -108,104 +148,168 @@ export default function JugarWordlePage() {
     return state;
   }, [guesses]);
 
-  function handleKeyInput(rawKey: string) {
-    if (!targetWord || status !== "playing" || loading) return;
-
-    const key = rawKey.toUpperCase();
-
-    if (key === "RUNCOMMAND" || key === "PROCESS" || key === "META") {
-      return;
-    }
-
-    if (key === "BACKSPACE" || key === "⌫") {
-      const updated = [...currentGuess];
-      for (let i = wordLength - 1; i >= 0; i -= 1) {
-        if (updated[i]) {
-          updated[i] = "";
-          break;
-        }
+  const handleKeyInput = useCallback(
+    (rawKey: string) => {
+      if (!targetWord || status !== "playing" || loading || alreadyPlayed) {
+        return;
       }
+
+      const key = rawKey.toUpperCase();
+
+      if (key === "BACKSPACE" || key === "⌫") {
+        const updated = [...currentGuess];
+        for (let i = updated.length - 1; i >= 0; i -= 1) {
+          if (updated[i]) {
+            updated[i] = "";
+            break;
+          }
+        }
+        setCurrentGuess(updated);
+        setFeedback(null);
+        return;
+      }
+
+      if (key === "ENTER") {
+        const guessWord = currentGuess.join("").toLowerCase();
+        if (guessWord.length !== wordLength || currentGuess.includes("")) {
+          setFeedback(`La palabra debe tener ${wordLength} letras.`);
+          return;
+        }
+
+        try {
+          const states = evaluateGuess(targetWord, guessWord);
+          const newGuesses = [...guesses];
+          newGuesses[attemptIndex] = { guess: guessWord, states };
+          const nextAttempt = attemptIndex + 1;
+
+          setGuesses(newGuesses);
+          setAttemptIndex(nextAttempt);
+          setCurrentGuess(Array(wordLength).fill(""));
+          setFeedback(null);
+
+          if (states.every((state) => state === "correct")) {
+            setStatus("won");
+            setFeedback("¡Felicidades! Adivinaste la palabra.");
+          } else if (nextAttempt >= MAX_ATTEMPTS) {
+            setStatus("lost");
+            setFeedback(
+              `Se acabaron los intentos. La palabra era "${targetWord.toUpperCase()}".`,
+            );
+          }
+        } catch (error) {
+          console.error(error);
+          setFeedback("Ocurrió un error al evaluar el intento.");
+        }
+        return;
+      }
+
+      if (!/^[A-ZÑ]$/.test(key)) {
+        return;
+      }
+
+      const letterState = keyboardState[key];
+      if (letterState === "absent") {
+        return;
+      }
+
+      const nextIndex = currentGuess.findIndex((letter) => letter === "");
+      if (nextIndex === -1) {
+        return;
+      }
+
+      const updated = [...currentGuess];
+      updated[nextIndex] = key;
       setCurrentGuess(updated);
       setFeedback(null);
+    },
+    [alreadyPlayed, attemptIndex, currentGuess, guesses, keyboardState, loading, status, targetWord, wordLength],
+  );
+
+  useEffect(() => {
+    if (!targetWord || status !== "playing" || alreadyPlayed) {
       return;
     }
 
-    if (key === "ENTER") {
-      const guessWord = currentGuess.join("").toLowerCase();
-      if (guessWord.length !== wordLength || currentGuess.includes("")) {
-        setFeedback(`La palabra debe tener ${wordLength} letras.`);
-        return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      const key = event.key;
+      if (/^[a-zñA-ZÑ]$/.test(key) || key === "Backspace" || key === "Enter") {
+        event.preventDefault();
+        handleKeyInput(key);
       }
+    };
 
-      try {
-        const states = evaluateGuess(targetWord, guessWord);
-        const newGuesses = [...guesses];
-        newGuesses[attemptIndex] = { guess: guessWord, states };
-        setGuesses(newGuesses);
-        setAttemptIndex(attemptIndex + 1);
-        setCurrentGuess(Array(wordLength).fill(""));
-        setFeedback(null);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [alreadyPlayed, handleKeyInput, status, targetWord]);
 
-        if (states.every((state) => state === "correct")) {
-          setStatus("won");
-          setFeedback("¡Felicidades! Adivinaste la palabra.");
-        } else if (attemptIndex + 1 >= MAX_ATTEMPTS) {
-          setStatus("lost");
-          setFeedback(`Se acabaron los intentos. La palabra era "${targetWord.toUpperCase()}".`);
+  useEffect(() => {
+    if (status === "playing" && !alreadyPlayed) {
+      if (!timerRef.current) {
+        timerRef.current = setInterval(() => {
+          setSecondsElapsed((prev) => prev + 1);
+        }, 1000);
+      }
+    } else {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [status, alreadyPlayed]);
+
+  useEffect(() => {
+    if (alreadyPlayed || status === "playing" || !targetWord) {
+      return;
+    }
+
+    if (resultSubmittedRef.current) {
+      return;
+    }
+
+    resultSubmittedRef.current = true;
+    const attemptsUsed = Math.min(attemptIndex, MAX_ATTEMPTS);
+    const payload = {
+      attempts: attemptsUsed,
+      seconds: secondsElapsed,
+      solved: status === "won",
+    };
+
+    fetch("/api/wordle/result", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          console.error(data?.error ?? "Error al guardar el resultado.");
+          return;
         }
-      } catch (error) {
-        console.error(error);
-        setFeedback("Ocurrió un error al evaluar el intento.");
-      }
-      return;
-    }
+        const data = await res.json();
+        setDailyResult(data.result ?? payload);
+        setAlreadyPlayed(true);
+      })
+      .catch((error) => {
+        console.error("Error al registrar el resultado", error);
+      });
+  }, [alreadyPlayed, attemptIndex, secondsElapsed, status, targetWord]);
 
-    if (!/^[A-ZÑ]$/i.test(key)) {
-      return;
-    }
+  const boardRows = useMemo(() => {
+    const rows: Array<GuessResult | null> = Array.from(
+      { length: MAX_ATTEMPTS },
+      (_, index) => guesses[index] ?? null,
+    );
+    return rows;
+  }, [guesses]);
 
-    const letterState = keyboardState[key];
-    if (letterState === "absent") {
-      return;
-    }
-
-    const updated = [...currentGuess];
-    const nextIndex = updated.findIndex((letter) => letter === "");
-
-    if (nextIndex === -1) {
-      setFeedback(`La palabra ya tiene ${wordLength} letras`);
-      return;
-    }
-
-    updated[nextIndex] = key;
-    setCurrentGuess(updated);
-    setFeedback(null);
-  }
-
-  const handleReset = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch("/api/wordle/random");
-      if (!response.ok) {
-        const data = await response.json().catch(() => null);
-        setFeedback(data?.error ?? "No se pudo obtener una nueva palabra.");
-        return;
-      }
-      const data = await response.json();
-      setTargetWord(data.word);
-      setWordLength(data.length ?? data.word.length);
-      setGuesses([]);
-      setCurrentGuess(Array(data.length ?? data.word.length).fill(""));
-      setAttemptIndex(0);
-      setStatus("playing");
-      setFeedback(null);
-    } catch (error) {
-      console.error(error);
-      setFeedback("Error al reiniciar el juego.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const attemptsUsed = Math.min(attemptIndex, MAX_ATTEMPTS);
 
   const renderCell = (
     value: string,
@@ -247,10 +351,21 @@ export default function JugarWordlePage() {
         <header className="flex flex-col gap-2 text-center">
           <h1 className="text-3xl font-bold tracking-tight">Wordle Noir</h1>
           <p className="text-sm text-[#8b8fa3]">
-            Adiviná la palabra oculta en {MAX_ATTEMPTS} intentos. Escribí directamente en el tablero y
-            presioná ENTER para enviar cada intento.
+            Solo una partida por día. Escribí en el tablero y presioná Enter para registrar tu
+            intento.
           </p>
+          <p className="text-xs text-[#6c7086]">{todayRef.current}</p>
         </header>
+
+        <div className="text-center text-sm text-[#8b8fa3]">
+          {status === "playing" && !alreadyPlayed
+            ? `Tiempo: ${formatTime(secondsElapsed)} · Intento ${attemptIndex + 1}/${MAX_ATTEMPTS}`
+            : dailyResult
+            ? `Resultado del día · Intentos: ${dailyResult.attempts}/${MAX_ATTEMPTS} · Tiempo: ${formatTime(
+                dailyResult.seconds,
+              )}`
+            : `Tiempo final: ${formatTime(secondsElapsed)} · Intentos: ${attemptsUsed}/${MAX_ATTEMPTS}`}
+        </div>
 
         {feedback ? (
           <div
@@ -270,33 +385,22 @@ export default function JugarWordlePage() {
           <div className="flex flex-col gap-2">
             {Array.from({ length: MAX_ATTEMPTS }).map((_, rowIdx) => {
               const result = boardRows[rowIdx];
-              const isCurrent = rowIdx === attemptIndex;
+              const isCurrent = rowIdx === attemptIndex && status === "playing";
               return (
-                <div
-                  key={`row-${rowIdx}`}
-                  className="flex justify-center gap-2"
-                >
+                <div key={`row-${rowIdx}`} className="flex justify-center gap-2">
                   {Array.from({ length: wordLength }).map((__, colIdx) => {
                     const value =
                       result?.guess[colIdx] ?? (isCurrent ? currentGuess[colIdx] ?? "" : "");
                     const state = result?.states[colIdx];
                     const nextEmptyIndex = currentGuess.findIndex((letter) => letter === "");
-                    const isActive = isCurrent && colIdx === (nextEmptyIndex === -1 ? wordLength - 1 : nextEmptyIndex);
+                    const activeIndex =
+                      nextEmptyIndex === -1 ? wordLength - 1 : nextEmptyIndex;
+                    const isActive = isCurrent && colIdx === activeIndex;
                     return renderCell(value, state, isActive, colIdx);
                   })}
                 </div>
               );
             })}
-          </div>
-
-          <div className="flex justify-center">
-            <button
-              type="button"
-              onClick={handleReset}
-              className="rounded-full border border-[#2d2d36] px-6 py-2 text-sm font-medium uppercase tracking-wide transition hover:border-[#6aaa64] hover:text-[#9ce27a]"
-            >
-              Nueva palabra
-            </button>
           </div>
 
           <div className="flex flex-col items-center gap-2">
@@ -308,7 +412,8 @@ export default function JugarWordlePage() {
                       <button
                         key={key}
                         onClick={() => handleKeyInput("Enter")}
-                        className="rounded-lg bg-[#6aaa64] px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white shadow-[0_4px_0_#3c6c3c] transition hover:-translate-y-[1px] hover:shadow-[0_6px_0_#3c6c3c]"
+                        disabled={status !== "playing" || alreadyPlayed || loading}
+                        className="rounded-lg bg-[#6aaa64] px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white shadow-[0_4px_0_#3c6c3c] transition hover:-translate-y-[1px] hover:shadow-[0_6px_0_#3c6c3c] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-[0_4px_0_#3c6c3c]"
                       >
                         Enter
                       </button>
@@ -320,7 +425,8 @@ export default function JugarWordlePage() {
                       <button
                         key={key}
                         onClick={() => handleKeyInput("Backspace")}
-                        className="rounded-lg bg-[#2d2d36] px-4 py-2 text-sm font-semibold uppercase tracking-wide text-[#f5f5f5] shadow-[0_4px_0_#13131d] transition hover:-translate-y-[1px] hover:shadow-[0_6px_0_#13131d]"
+                        disabled={status !== "playing" || alreadyPlayed || loading}
+                        className="rounded-lg bg-[#2d2d36] px-4 py-2 text-sm font-semibold uppercase tracking-wide text-[#f5f5f5] shadow-[0_4px_0_#13131d] transition hover:-translate-y-[1px] hover:shadow-[0_6px_0_#13131d] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-[0_4px_0_#13131d]"
                       >
                         ⌫
                       </button>
@@ -328,8 +434,8 @@ export default function JugarWordlePage() {
                   }
 
                   const letterState = keyboardState[key];
+                  const disabled = letterState === "absent" || status !== "playing" || alreadyPlayed || loading;
                   let keyClasses = "rounded-lg px-4 py-2 text-sm font-semibold uppercase tracking-wide transition";
-                  const disabled = letterState === "absent";
                   switch (letterState) {
                     case "correct":
                       keyClasses += " bg-[#6aaa64] text-white shadow-[0_4px_0_#3c6c3c]";
@@ -345,12 +451,16 @@ export default function JugarWordlePage() {
                       break;
                   }
 
+                  if (disabled) {
+                    keyClasses += " opacity-50 cursor-not-allowed hover:translate-y-0 hover:shadow-[0_4px_0_#13131d]";
+                  }
+
                   return (
                     <button
                       key={key}
                       onClick={() => handleKeyInput(key)}
-                      className={`${keyClasses} ${disabled ? "opacity-40 cursor-not-allowed hover:translate-y-0 hover:shadow-[0_4px_0_#13131d]" : ""}`}
                       disabled={disabled}
+                      className={keyClasses}
                     >
                       {key}
                     </button>

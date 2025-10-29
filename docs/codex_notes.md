@@ -16,7 +16,7 @@
 - Helpers Prisma/Auth/Session centralizan acceso a base y sesión (`src/lib/prisma.ts`, `src/lib/auth.ts`, `src/lib/session.ts`).
 - Endpoints protegidos: `POST /api/auth/login`, `GET/POST /api/users`, `POST /api/groups`, `GET /api/session`.
 - Pantallas `/login` (modo dark) y `/dashboard` (panel rápido para creación de usuarios y grupos con asignación de miembros).
-- Página `/jugar-wordle` consumiendo `GET /api/wordle/random` y lógica `evaluateGuess` (tablero local interactivo).
+- Página `/jugar-wordle` consumiendo `GET /api/wordle/daily` + `POST /api/wordle/result`; tablero interactivo con teclado virtual, temporizador y partida diaria (se persiste intento y tiempo).
 - Home inspirada en Wordle implementada con estética dark y hero interactivo.
 - Usuario inicial (`sebastianfente@gmail.com`) promovido a rol ADMIN para usar el panel.
 - Despliegue preparado para Vercel (`vercel.json`, script `vercel-build`, `postinstall` con `prisma generate`, guía en `docs/deploy-vercel.md`).

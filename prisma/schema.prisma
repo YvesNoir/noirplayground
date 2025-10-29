@@ -242,4 +242,32 @@ model Word {
   usedAt    DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  wordleDay WordleDay?
+  results   WordleResult[]
+}
+
+model WordleDay {
+  id        String         @id @default(cuid())
+  date      String         @unique
+  wordId    String         @unique
+  createdAt DateTime       @default(now())
+
+  word     Word            @relation(fields: [wordId], references: [id], onDelete: Cascade)
+  results  WordleResult[]
+}
+
+model WordleResult {
+  id           String   @id @default(cuid())
+  userId       String
+  wordleDayId  String
+  attempts     Int
+  seconds      Int
+  solved       Boolean
+  createdAt    DateTime @default(now())
+
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day  WordleDay @relation(fields: [wordleDayId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, wordleDayId])
 }
